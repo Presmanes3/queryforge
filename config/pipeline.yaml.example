@@ -1,18 +1,68 @@
 # QueryForge — Pipeline Configuration Template (EXAMPLE)
 # Copy this to pipeline.yaml and fill in your real values.
 # DO NOT commit pipeline.yaml with real AWS credentials or ARNs.
+#
+# Environment variable overrides (two depths):
+#   Top-level : QF_S3_BUCKET=my-bucket
+#   Nested    : QF_TRAIN__EPOCHS=5   (double underscore = one level down)
 
-# Environment overrides: QF_S3_BUCKET, QF_EXECUTION_ROLE_ARN, etc.
-
-# --- AWS Infrastructure (Required) ---
+# ---------------------------------------------------------------------------
+# AWS Infrastructure (Required)
+# ---------------------------------------------------------------------------
 s3_bucket: "your-unique-bucket-name"
 execution_role_arn: "arn:aws:iam::ACCOUNT_ID:role/QueryForgeSageMakerRole"
 aws_region: "us-east-1"
+# aws_profile: "my-named-profile"   # omit to use the default credentials chain
 
-# --- SageMaker Processing & Training (Defaults) ---
+# Root prefix for all S3 artifacts (default: queryforge)
+s3_prefix: "queryforge"
+
+# ---------------------------------------------------------------------------
+# SageMaker Processing container
+# ---------------------------------------------------------------------------
 processing_image_uri: "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/queryforge-processing:v1"
-train_instance_type: "ml.g5.2xlarge"
 processing_instance_type: "ml.m5.large"
 
-# --- Evaluation Gating (0.0-1.0) ---
+# ---------------------------------------------------------------------------
+# QLoRA Training Job (all fields are optional — shown with their defaults)
+# ---------------------------------------------------------------------------
+train:
+  instance_type: "ml.g5.2xlarge"
+  max_runtime_seconds: 3600
+  epochs: 1
+  batch_size: 4
+  grad_accum_steps: 4
+  learning_rate: 0.0002
+  max_seq_length: 512
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+
+# ---------------------------------------------------------------------------
+# Bedrock model for synthetic data generation
+# ---------------------------------------------------------------------------
+bedrock_model_id: "amazon.nova-pro-v1:0"
+
+# ---------------------------------------------------------------------------
+# Evaluation gating threshold (0.0 – 1.0)
+# ---------------------------------------------------------------------------
 accuracy_threshold: 0.75
+
+# ---------------------------------------------------------------------------
+# Artifact folder names initialized in S3 by setup_aws.py
+# ---------------------------------------------------------------------------
+artifact_folders:
+  - datasets
+  - models
+  - schemas
+  - metrics
+  - adapters
+  - gguf
+
+# ---------------------------------------------------------------------------
+# Populated automatically by setup_aws.py — do not edit by hand
+# ---------------------------------------------------------------------------
+# artifact_uris:
+#   datasets_uri: "s3://your-bucket/queryforge/datasets"
+#   models_uri:   "s3://your-bucket/queryforge/models"
+#   ...
