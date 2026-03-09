@@ -3,6 +3,8 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+*./github
+
 # C extensions
 *.so
 
@@ -96,6 +98,15 @@ ipython_config.py
 
 # UV
 #   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
+
+# --- QueryForge Configuration ---
+config/pipeline.yaml
+!config/pipeline.yaml.example
+
+# --- Python Environment ---
+.venv/
+.venv*
+
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
 #uv.lock
