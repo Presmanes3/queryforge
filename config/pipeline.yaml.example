@@ -1,0 +1,18 @@
+# QueryForge — Pipeline Configuration Template (EXAMPLE)
+# Copy this to pipeline.yaml and fill in your real values.
+# DO NOT commit pipeline.yaml with real AWS credentials or ARNs.
+
+# Environment overrides: QF_S3_BUCKET, QF_EXECUTION_ROLE_ARN, etc.
+
+# --- AWS Infrastructure (Required) ---
+s3_bucket: "your-unique-bucket-name"
+execution_role_arn: "arn:aws:iam::ACCOUNT_ID:role/QueryForgeSageMakerRole"
+aws_region: "us-east-1"
+
+# --- SageMaker Processing & Training (Defaults) ---
+processing_image_uri: "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/queryforge-processing:v1"
+train_instance_type: "ml.g5.2xlarge"
+processing_instance_type: "ml.m5.large"
+
+# --- Evaluation Gating (0.0-1.0) ---
+accuracy_threshold: 0.75
