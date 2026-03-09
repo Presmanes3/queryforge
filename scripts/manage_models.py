@@ -5,13 +5,12 @@ to the project's S3 bucket following the hierarchical naming convention.
 """
 
 from __future__ import annotations
+
 import argparse
 import os
 
-import boto3
-
 from queryforge.utils.config import load_config
-from queryforge.utils.s3 import upload_file
+from queryforge.utils.s3 import S3Repository, upload_file
 
 
 def list_local_models(models_dir: str = "models") -> list[str]:
@@ -22,22 +21,6 @@ def list_local_models(models_dir: str = "models") -> list[str]:
         d for d in os.listdir(models_dir)
         if os.path.isdir(os.path.join(models_dir, d))
     ]
-
-
-def _models_s3_prefix(config) -> str:
-    """Return the S3 key prefix for base models, derived from models_uri in config."""
-    uri = config.artifact_uris.get(
-        "models_uri", f"s3://{config.s3_bucket}/{config.s3_prefix}/models"
-    )
-    return uri.replace(f"s3://{config.s3_bucket}/", "")
-
-
-def check_exists_in_s3(bucket: str, models_prefix: str, model_name: str, version: str = "v1") -> bool:
-    """Check if the model version prefix exists in S3."""
-    s3 = boto3.client("s3")
-    prefix_key = f"{models_prefix}/{model_name}/{version}/"
-    response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix_key, MaxKeys=1)
-    return "Contents" in response
 
 
 def main() -> None:
@@ -56,6 +39,7 @@ def main() -> None:
     args = parser.parse_args()
 
     config = load_config(args.config)
+    repo = S3Repository(config.boto_session())
 
     if args.action == "list":
         print(f"{'Model Name':<30} | {'Status in S3 (base)':<20}")
@@ -65,9 +49,11 @@ def main() -> None:
         if not locals_found:
             print("No local models found in models/ directory.")
 
-        models_prefix = _models_s3_prefix(config)
+        models_prefix = S3Repository.resolve_component_prefix(config, "models")
         for m in locals_found:
-            exists = check_exists_in_s3(config.s3_bucket, models_prefix, m, args.version)
+            exists = repo.prefix_exists(
+                config.s3_bucket, f"{models_prefix}/{m}/{args.version}/"
+            )
             status = "[v] Uploaded" if exists else "[ ] Not in S3"
             print(f"{m:<30} | {status:<20}")
 
@@ -81,7 +67,7 @@ def main() -> None:
             print(f"Error: Local directory '{local_dir}' does not exist.")
             return
 
-        models_prefix = _models_s3_prefix(config)
+        models_prefix = S3Repository.resolve_component_prefix(config, "models")
         dest = f"s3://{config.s3_bucket}/{models_prefix}/{args.model}/{args.version}"
         print(f"Uploading '{args.model}' to {dest}/...")
         uploaded = 0

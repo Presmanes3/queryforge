@@ -7,9 +7,9 @@ from __future__ import annotations
 import argparse
 import sys
 import yaml
-import boto3
 from botocore.exceptions import ClientError
 from queryforge.utils.config import load_config
+from queryforge.utils.s3 import S3Repository
 
 
 def main():
@@ -22,7 +22,9 @@ def main():
 
     config_path = args.config
     config = load_config(config_path)
-    s3 = boto3.client("s3", region_name=config.aws_region)
+    boto_session = config.boto_session()
+    s3 = boto_session.client("s3")
+    repo = S3Repository(boto_session)
 
     # 1. Bucket initialization
     try:
@@ -43,12 +45,11 @@ def main():
             print(f"Failed to access bucket: {e}")
             sys.exit(1)
 
-    # 2. Base artifact paths (Placeholder objects to establish prefix hierarchy)
-    # Following the convention: s3://<bucket>/queryforge/<folder>/
+    # 2. Base artifact paths (placeholder objects to establish prefix hierarchy)
     artifact_uris = {}
     for folder in config.artifact_folders:
         key_prefix = f"{config.s3_prefix}/{folder}"
-        s3.put_object(Bucket=config.s3_bucket, Key=f"{key_prefix}/.keep", Body="")
+        repo.put(config.s3_bucket, f"{key_prefix}/.keep")
         uri = f"s3://{config.s3_bucket}/{key_prefix}"
         artifact_uris[f"{folder}_uri"] = uri
         print(f"Initialized folder: {uri}")
@@ -64,10 +65,6 @@ def main():
         yaml.dump(yaml_data, f, sort_keys=False, default_flow_style=False)
 
     print(f"Bucket bootstrap sequence completed successfully in {config.aws_region}.")
-
-
-if __name__ == "__main__":
-    main()
 
 
 if __name__ == "__main__":

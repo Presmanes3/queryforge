@@ -9,6 +9,7 @@ import os
 import sys
 from queryforge.utils.config import load_config
 from queryforge.utils.s3 import (
+    S3Repository,
     check_s3_uri_exists,
     upload_file,
     list_s3_objects,
@@ -64,11 +65,8 @@ def handle_upload(args, config):
     run_id = args.run_id or generate_run_id()
     filename = os.path.basename(args.local_path)
 
-    component_uri = config.artifact_uris.get(
-        f"{args.component}_uri",
-        f"s3://{config.s3_bucket}/{config.s3_prefix}/{args.component}",
-    )
-    s3_uri = f"{component_uri}/{args.schema_name}/{args.schema_version}/{run_id}/{filename}"
+    base_uri = S3Repository.component_uri(config, args.component)
+    s3_uri = f"{base_uri}/{args.schema_name}/{args.schema_version}/{run_id}/{filename}"
 
     if check_s3_uri_exists(config.s3_bucket, s3_uri):
         print(f"Artifact already exists at {s3_uri}.")
@@ -85,12 +83,7 @@ def handle_upload(args, config):
 
 def handle_list(args, config):
     """List artifacts in S3 based on component and schema filters."""
-    # Derive base prefix from artifact_uris in pipeline.yaml
-    component_uri = config.artifact_uris.get(
-        f"{args.component}_uri",
-        f"s3://{config.s3_bucket}/{config.s3_prefix}/{args.component}",
-    )
-    prefix = component_uri.replace(f"s3://{config.s3_bucket}/", "")
+    prefix = S3Repository.resolve_component_prefix(config, args.component)
     if args.schema_name:
         prefix += f"/{args.schema_name}/{args.schema_version}"
         if args.run_id:
@@ -114,11 +107,7 @@ def handle_delete(args, config):
         sys.exit(1)
 
     # Derive delete target from artifact_uris in pipeline.yaml
-    component_uri = config.artifact_uris.get(
-        f"{args.component}_uri",
-        f"s3://{config.s3_bucket}/{config.s3_prefix}/{args.component}",
-    )
-    base_prefix = component_uri.replace(f"s3://{config.s3_bucket}/", "")
+    base_prefix = S3Repository.resolve_component_prefix(config, args.component)
     target_prefix = f"{base_prefix}/{args.schema_name}/{args.schema_version}"
     if args.run_id:
         target_prefix += f"/{args.run_id}"

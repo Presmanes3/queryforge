@@ -22,7 +22,6 @@ Output is written to ./local_output/ relative to the workspace root.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -106,13 +105,10 @@ def _resolve_dataset_dir(schema_name: str, schema_version: str) -> Path:
 
 def _train(args) -> None:
     """Launch a QLoRA Training Job in a local Docker container."""
-    # Heavy optional dependencies — only loaded when this action is invoked.
-    # noqa: PLC0415 — heavy optional dependency, only needed for train action
-    import boto3
-    from sagemaker.core.helper.session_helper import Session
-    from sagemaker.train.model_trainer import ModelTrainer, Mode
-    from sagemaker.train.configs import Compute, InputData, SourceCode
-
+    # noqa: PLC0415 — heavy optional dependencies, only needed for train action
+    from sagemaker.train.model_trainer import Mode
+    from sagemaker.train.configs import InputData
+    from queryforge.train.estimator import TrainingJobBuilder
     from queryforge.utils.config import load_config
 
     config = load_config(args.config)
@@ -122,43 +118,28 @@ def _train(args) -> None:
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Hyperparameters are sourced from config so they stay consistent with
-    # the cloud training path in run_finetuning.py.
-    hyperparameters = {
-        "lora_r": config.train.lora_r,
-        "lora_alpha": config.train.lora_alpha,
-        "lora_dropout": config.train.lora_dropout,
-        "epochs": config.train.epochs,
-        "batch_size": config.train.batch_size,
-        "grad_accum_steps": config.train.grad_accum_steps,
-        "learning_rate": config.train.learning_rate,
-        "max_seq_length": config.train.max_seq_length,
-    }
-
-    boto_session = boto3.Session(region_name=config.aws_region)
-    sagemaker_session = Session(
-        boto_session=boto_session,
-        default_bucket=config.s3_bucket,
-        default_bucket_prefix=config.s3_prefix,
-    )
-
-    source_code = SourceCode(
-        source_dir=str(_WORKSPACE_ROOT / "src" / "queryforge" / "train"),
-        entry_script="train.py",
-        requirements="requirements-train.txt",
-    )
-
-    # local_gpu when CUDA is detectable; fall back to local_cpu otherwise.
-    try:
-        import torch
-        instance_type = "local_gpu" if torch.cuda.is_available() else "local_cpu"
-    except ImportError:
-        instance_type = "local_cpu"
-
+    # Resolve instance type before building so it can be displayed in the
+    # summary printed before the potentially long container startup.
     if args.instance_type:
         instance_type = args.instance_type
+    else:
+        try:
+            import torch  # noqa: PLC0415 — heavy optional, only for GPU auto-detection
+            instance_type = "local_gpu" if torch.cuda.is_available() else "local_cpu"
+        except ImportError:
+            instance_type = "local_cpu"
 
-    compute = Compute(instance_type=instance_type, instance_count=1)
+    trainer = (
+        TrainingJobBuilder(config)
+        .with_mode(Mode.LOCAL_CONTAINER)
+        .with_training_image(args.training_image)
+        .with_instance_type(instance_type)
+        .with_input_data([
+            InputData(channel_name="model", data_source=str(model_dir)),
+            InputData(channel_name="training", data_source=str(dataset_dir)),
+        ])
+        .build()
+    )
 
     print(f"Model     : {model_dir}")
     print(f"Dataset   : {dataset_dir}")
@@ -167,21 +148,7 @@ def _train(args) -> None:
     print(f"Image     : {args.training_image}")
     print("\nStarting local container training...")
 
-    model_trainer = ModelTrainer(
-        training_image=args.training_image,
-        sagemaker_session=sagemaker_session,
-        source_code=source_code,
-        compute=compute,
-        hyperparameters=hyperparameters,
-        input_data_config=[
-            InputData(channel_name="model", data_source=str(model_dir)),
-            InputData(channel_name="training", data_source=str(dataset_dir)),
-        ],
-        base_job_name="queryforge-local-train",
-        training_mode=Mode.LOCAL_CONTAINER,
-    )
-
-    model_trainer.train(wait=args.wait)
+    trainer.train(wait=args.wait)
 
     if args.wait:
         print(f"\nLocal training complete. Adapter saved to: {output_dir}")

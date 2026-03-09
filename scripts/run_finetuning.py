@@ -5,29 +5,22 @@ QLoRA Training Job for a chosen model/dataset pair.
 """
 
 from __future__ import annotations
+
 import argparse
 import sys
 from collections import defaultdict
 
 from queryforge.utils.config import load_config
-from queryforge.utils.s3 import generate_run_id, list_s3_objects
+from queryforge.utils.s3 import S3Repository, generate_run_id, list_s3_objects
 
 
 # ---------------------------------------------------------------------------
 # Listing helpers
 # ---------------------------------------------------------------------------
 
-def _models_prefix(config) -> str:
-    """Return the S3 key prefix for base models from config."""
-    uri = config.artifact_uris.get(
-        "models_uri", f"s3://{config.s3_bucket}/{config.s3_prefix}/models"
-    )
-    return uri.replace(f"s3://{config.s3_bucket}/", "")
-
-
 def _list_models(config) -> None:
     """Print a table of base model artifacts available in S3."""
-    models_prefix = _models_prefix(config)
+    models_prefix = S3Repository.resolve_component_prefix(config, "models")
     all_keys = list_s3_objects(config.s3_bucket, models_prefix)
 
     # Keys follow: <models_prefix>/<model_name>/<version>/<filename>
@@ -51,10 +44,7 @@ def _list_models(config) -> None:
 
 def _list_datasets(config, schema_name: str | None) -> None:
     """Print a table of dataset artifacts available in S3."""
-    base_uri = config.artifact_uris.get(
-        "datasets_uri", f"s3://{config.s3_bucket}/{config.s3_prefix}/datasets"
-    )
-    datasets_key = base_uri.replace(f"s3://{config.s3_bucket}/", "")
+    datasets_key = S3Repository.resolve_component_prefix(config, "datasets")
     all_keys = list_s3_objects(config.s3_bucket, datasets_key)
 
     # Keys follow: {datasets_key}/{schema}/{version}/{run_id}/{filename}
@@ -94,10 +84,7 @@ def _resolve_dataset_run_id(config, schema_name: str, schema_version: str) -> st
     Raises:
         SystemExit: If no matching dataset is found in S3.
     """
-    base_uri = config.artifact_uris.get(
-        "datasets_uri", f"s3://{config.s3_bucket}/{config.s3_prefix}/datasets"
-    )
-    datasets_key = base_uri.replace(f"s3://{config.s3_bucket}/", "")
+    datasets_key = S3Repository.resolve_component_prefix(config, "datasets")
     prefix = f"{datasets_key}/{schema_name}/{schema_version}/"
     keys = list_s3_objects(config.s3_bucket, prefix)
     run_ids = set()
@@ -123,7 +110,9 @@ def _resolve_dataset_run_id(config, schema_name: str, schema_version: str) -> st
 def _train(args, config) -> None:
     """Launch a SageMaker QLoRA Training Job."""
     # noqa: PLC0415 — heavy optional dependency, only needed for train action
-    from queryforge.train.estimator import build_estimator, build_training_inputs
+    from sagemaker.train.configs import InputData, S3DataSource
+    from queryforge.train.estimator import TrainingJobBuilder, build_training_inputs
+    from queryforge.train.hyperparameters import build_hyperparameters
 
     schema_name: str = args.schema_name
     schema_version: str = args.schema_version
@@ -135,46 +124,31 @@ def _train(args, config) -> None:
         config, schema_name, schema_version
     )
 
-    # Build S3 URI for the model channel using models_uri from config.
-    models_uri = config.artifact_uris.get(
-        "models_uri", f"s3://{config.s3_bucket}/{config.s3_prefix}/models"
+    # URIs sourced from config artifact_uris (SSoT); fallback to conventional path.
+    model_s3_uri = f"{S3Repository.component_uri(config, 'models')}/{model_name}/{model_version}"
+    dataset_s3_uri = (
+        f"{S3Repository.component_uri(config, 'datasets')}"
+        f"/{schema_name}/{schema_version}/{dataset_run_id}"
     )
-    model_s3_uri = f"{models_uri}/{model_name}/{model_version}"
 
-    datasets_base = config.artifact_uris.get(
-        "datasets_uri", f"s3://{config.s3_bucket}/{config.s3_prefix}/datasets"
-    )
-    dataset_s3_uri = f"{datasets_base}/{schema_name}/{schema_version}/{dataset_run_id}"
-
-    # Build output URI
     run_id = generate_run_id()
-    if args.output_s3_uri:
-        output_s3_uri = args.output_s3_uri
-    else:
-        adapters_base = config.artifact_uris.get(
-            "adapters_uri", f"s3://{config.s3_bucket}/{config.s3_prefix}/adapters"
-        )
-        output_s3_uri = f"{adapters_base}/{schema_name}/{schema_version}/{run_id}"
-
-    hyperparameters = {
-        "lora_r": config.train.lora_r,
-        "lora_alpha": config.train.lora_alpha,
-        "lora_dropout": config.train.lora_dropout,
-        "epochs": config.train.epochs,
-        "batch_size": config.train.batch_size,
-        "grad_accum_steps": config.train.grad_accum_steps,
-        "learning_rate": config.train.learning_rate,
-        "max_seq_length": config.train.max_seq_length,
-    }
+    output_s3_uri = args.output_s3_uri or (
+        f"{S3Repository.component_uri(config, 'adapters')}"
+        f"/{schema_name}/{schema_version}/{run_id}"
+    )
 
     print(f"Model   : {model_s3_uri}")
     print(f"Dataset : {dataset_s3_uri} (run_id={dataset_run_id})")
     print(f"Output  : {output_s3_uri}")
     print("\nLaunching SageMaker Training Job...")
 
-    trainer = build_estimator(config, hyperparameters, output_s3_uri)
-    inputs = build_training_inputs(model_s3_uri, dataset_s3_uri)
-    training_job = trainer.train(input_data_config=inputs, wait=True)
+    trainer = (
+        TrainingJobBuilder(config)
+        .with_output_s3_uri(output_s3_uri)
+        .with_input_data(build_training_inputs(model_s3_uri, dataset_s3_uri))
+        .build()
+    )
+    training_job = trainer.train(wait=True)
 
     job_name = training_job.training_job_name
     artifact_uri = f"{output_s3_uri}/{job_name}/output/model.tar.gz"

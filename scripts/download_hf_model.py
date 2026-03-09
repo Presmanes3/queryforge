@@ -5,12 +5,11 @@ S3 bucket for use in SageMaker training jobs.
 """
 
 from __future__ import annotations
+
 import argparse
-import os
 import sys
+
 from huggingface_hub import snapshot_download
-from queryforge.utils.config import load_config
-from queryforge.utils.s3 import build_s3_uri, upload_file
 
 
 def main():
@@ -28,17 +27,12 @@ def main():
         default=None,
         help="Local directory to store the downloaded model. Defaults to models/<model_name>."
     )
-    parser.add_argument("--config", default="config/pipeline.yaml")
     args = parser.parse_args()
 
     # Determine paths and names
     model_name = args.model_id.split("/")[-1]
-    local_dir = args.local_dir or os.path.join("models", model_name)
+    local_dir = args.local_dir or f"models/{model_name}"
 
-    # Load SSoT
-    config = load_config(args.config)
-
-    # 1. Download from Hugging Face
     print(f"Downloading model '{args.model_id}' into '{local_dir}'...")
     try:
         local_model_path = snapshot_download(
