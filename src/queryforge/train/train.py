@@ -15,6 +15,11 @@ from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_tr
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from trl import SFTConfig, SFTTrainer
 
+# hyperparameters.py is co-located in the same train/ directory and is packaged
+# into the container alongside this entry point.  It has no SageMaker SDK
+# dependency so it is safe to import here.
+from hyperparameters import DEFAULTS
+
 _HP_PATH = "/opt/ml/input/config/hyperparameters.json"
 _MODEL_CHANNEL = "/opt/ml/input/data/model"
 _TRAINING_CHANNEL = "/opt/ml/input/data/training"
@@ -67,9 +72,9 @@ def main() -> None:
     model = get_peft_model(
         model,
         _get_lora_config(
-            r=int(hp.get("lora_r", 16)),
-            alpha=int(hp.get("lora_alpha", 32)),
-            dropout=float(hp.get("lora_dropout", 0.05)),
+            r=int(hp.get("lora_r", DEFAULTS["lora_r"])),
+            alpha=int(hp.get("lora_alpha", DEFAULTS["lora_alpha"])),
+            dropout=float(hp.get("lora_dropout", DEFAULTS["lora_dropout"])),
         ),
     )
 
@@ -84,10 +89,10 @@ def main() -> None:
 
     training_args = SFTConfig(
         output_dir=_OUTPUT_DIR,
-        num_train_epochs=int(hp.get("epochs", 3)),
-        per_device_train_batch_size=int(hp.get("batch_size", 4)),
-        gradient_accumulation_steps=int(hp.get("grad_accum_steps", 4)),
-        learning_rate=float(hp.get("learning_rate", 2e-4)),
+        num_train_epochs=int(hp.get("epochs", DEFAULTS["epochs"])),
+        per_device_train_batch_size=int(hp.get("batch_size", DEFAULTS["batch_size"])),
+        gradient_accumulation_steps=int(hp.get("grad_accum_steps", DEFAULTS["grad_accum_steps"])),
+        learning_rate=float(hp.get("learning_rate", DEFAULTS["learning_rate"])),
         fp16=False,
         bf16=True,
         logging_steps=10,
@@ -95,7 +100,7 @@ def main() -> None:
         warmup_steps=100,
         lr_scheduler_type="cosine",
         dataset_text_field="text",
-        max_seq_length=int(hp.get("max_seq_length", 2048)),
+        max_seq_length=int(hp.get("max_seq_length", DEFAULTS["max_seq_length"])),
     )
 
     trainer = SFTTrainer(
