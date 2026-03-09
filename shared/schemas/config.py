@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import boto3
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -34,6 +36,10 @@ class PipelineConfig(BaseModel):
     aws_region: str = Field(
         default="us-east-1",
         description="AWS region where resources are provisioned."
+    )
+    aws_profile: str | None = Field(
+        default=None,
+        description="Named AWS credentials profile from ~/.aws/config. Uses the default profile when omitted.",
     )
     execution_role_arn: str = Field(
         description="IAM role ARN used by SageMaker Training and Processing jobs."
@@ -73,6 +79,20 @@ class PipelineConfig(BaseModel):
         default_factory=dict,
         description="Populated S3 URIs for project folders (dataset_uri, model_uri, etc.).",
     )
+
+    def boto_session(self) -> boto3.Session:
+        """Build a boto3 Session bound to this config's region and optional profile.
+
+        Returns:
+            A ``boto3.Session`` configured with ``aws_region`` and, when set,
+            ``aws_profile``.  All AWS SDK calls in the project should obtain
+            their session from this method rather than calling
+            ``boto3.Session()`` directly.
+        """
+        return boto3.Session(
+            region_name=self.aws_region,
+            profile_name=self.aws_profile,  # None → boto3 uses the default chain
+        )
 
     @field_validator("execution_role_arn")
     @classmethod
