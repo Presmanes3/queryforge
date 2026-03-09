@@ -1,0 +1,83 @@
+from __future__ import annotations
+from pydantic import BaseModel, Field, field_validator
+
+
+class TrainConfig(BaseModel):
+    """QLoRA training job configuration."""
+
+    instance_type: str = Field(default="ml.g5.2xlarge", description="SageMaker instance type for the training job.")
+    max_runtime_seconds: int = Field(default=3600, description="Wall-clock limit in seconds before SageMaker stops the job.")
+    epochs: int = Field(default=1, description="Number of training epochs.")
+    batch_size: int = Field(default=4, description="Per-device training batch size.")
+    grad_accum_steps: int = Field(default=4, description="Gradient accumulation steps.")
+    learning_rate: float = Field(default=2e-4, description="AdamW learning rate.")
+    max_seq_length: int = Field(default=512, description="Maximum token sequence length.")
+    lora_r: int = Field(default=16, description="LoRA rank.")
+    lora_alpha: int = Field(default=32, description="LoRA scaling factor.")
+    lora_dropout: float = Field(default=0.05, description="Dropout applied to LoRA layers.")
+
+
+class PipelineConfig(BaseModel):
+    """Single Source of Truth (SSoT) for QueryForge environment and infrastructure.
+
+    All AWS resource identifiers and hyperparameters are validated here.
+    """
+
+    # AWS Infrastructure
+    s3_bucket: str = Field(
+        description="Global S3 bucket for all project artifacts (datagen, models, metrics)."
+    )
+    s3_prefix: str = Field(
+        default="queryforge",
+        description="Root prefix for all S3 artifacts."
+    )
+    aws_region: str = Field(
+        default="us-east-1",
+        description="AWS region where resources are provisioned."
+    )
+    execution_role_arn: str = Field(
+        description="IAM role ARN used by SageMaker Training and Processing jobs."
+    )
+
+    # SageMaker Compute
+    train: TrainConfig = Field(
+        default_factory=TrainConfig,
+        description="QLoRA training job configuration (instance, hyperparameters, LoRA).",
+    )
+    processing_instance_type: str = Field(
+        default="ml.m5.large",
+        description="Default instance for data generation and evaluation jobs."
+    )
+    processing_image_uri: str = Field(
+        description="ECR image URI for the custom QueryForge processing container."
+    )
+
+    # Bedrock
+    bedrock_model_id: str = Field(
+        default="amazon.nova-pro-v1:0",
+        description="AWS Bedrock model ID used for synthetic question-SQL pair generation."
+    )
+
+    # Pipeline Thresholds
+    accuracy_threshold: float = Field(
+        default=0.75,
+        description="Minimum execution accuracy (0.0-1.0) required to register a model."
+    )
+
+    # Dynamic Infrastructure
+    artifact_folders: list[str] = Field(
+        default_factory=lambda: ["datasets", "models", "schemas", "metrics", "adapters", "gguf"],
+        description="List of logical segments to initialize in S3.",
+    )
+    artifact_uris: dict[str, str] = Field(
+        default_factory=dict,
+        description="Populated S3 URIs for project folders (dataset_uri, model_uri, etc.).",
+    )
+
+    @field_validator("execution_role_arn")
+    @classmethod
+    def validate_arn(cls, v: str) -> str:
+        """Ensure the ARN follows a valid IAM role format."""
+        if not v.startswith("arn:aws:iam::"):
+            raise ValueError("execution_role_arn must be a valid AWS IAM role ARN.")
+        return v

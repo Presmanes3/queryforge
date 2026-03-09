@@ -1,0 +1,83 @@
+[project]
+name = "queryforge"
+version = "0.1.0"
+description = "Fast Text-to-SQL workflows on AWS SageMaker"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Javier Presmanes Cardama", email = "presmanes3@gmail.com" }
+]
+dependencies = [
+    "boto3",
+    "sagemaker",
+    "pydantic",
+    "sqlmodel",
+    "ollama",
+    "pandas",
+    "huggingface_hub",
+    "langgraph",
+    "langchain-aws",
+    "langchain-core",
+    # uv routes this to cu124 on Windows/Linux via [tool.uv.sources].
+    # pip users: pip install torch --index-url https://download.pytorch.org/whl/cu124
+    "torch>=2.4,<2.7",
+    # Floor these transitive deps so the PyTorch cu124 index cannot downgrade them.
+    "typing-extensions>=4.14.1",
+    "jinja2>=3.1.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+]
+train = [
+    # uv resolves CUDA vs CPU automatically via [tool.uv.sources] below.
+    # pip users: add --extra-index-url https://download.pytorch.org/whl/cu124
+    #            to get the CUDA build; omit it for the CPU build.
+    "torch>=2.4,<2.7",
+    "transformers>=4.36,<5.0",
+    "peft>=0.8,<1.0",
+    "trl>=0.9,<1.0",
+    # datasets>=3.0 dropped the fsspec<=2024.6.1 upper bound that conflicts
+    # with the fsspec version installed by the PyTorch cu124 index.
+    "datasets>=3.0,<4.0",
+    "bitsandbytes>=0.41,<0.50",
+    "accelerate>=0.25,<2.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src", "shared" = "shared"}
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["queryforge*", "shared*"]
+
+# ---------------------------------------------------------------------------
+# uv: route torch to the CUDA index on Linux/Windows (most training machines)
+# and to the CPU index on macOS (no NVIDIA CUDA support).
+# uv tries the first matching source; if no compatible wheel is found it falls
+# back to the next entry, so CPU-only machines on Linux/Windows still work.
+# ---------------------------------------------------------------------------
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+
