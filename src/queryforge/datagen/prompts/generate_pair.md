@@ -6,9 +6,12 @@ Given the following SQL table schema:
 
 Generate exactly {n_samples} diverse question-SQL training pairs for the table above.
 
+This is batch {batch_index}. Focus primarily on these SQL patterns: {pattern_focus}.
+
 Rules:
-- Cover a wide variety of SQL patterns: SELECT *, WHERE filters, ORDER BY, LIMIT, GROUP BY, aggregate functions (COUNT, SUM, AVG, MIN, MAX), HAVING, subqueries, and CASE expressions.
+- Prioritise the SQL patterns listed above for this batch.
 - Vary the natural language phrasing — avoid repeating the same sentence structure.
+- Do not reuse questions that are obvious paraphrases of each other.
 - Every SQL query must be syntactically valid for SQLite.
 - Do not use JOINs with tables that are not defined in the schema above.
 - Each question must be answerable by a single SQL query against the table.
