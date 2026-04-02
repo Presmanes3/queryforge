@@ -81,10 +81,18 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(_MODEL_CHANNEL)
     tokenizer.pad_token = tokenizer.eos_token
 
-    dataset = load_dataset(
+    full_dataset = load_dataset(
         "json",
         data_files=os.path.join(_TRAINING_CHANNEL, "*.jsonl"),
         split="train",
+    )
+    split = full_dataset.train_test_split(test_size=0.1, seed=42)
+    print(
+        f"\n=== Dataset split ==="
+        f"\n  Total   : {len(full_dataset)} examples"
+        f"\n  Train   : {len(split['train'])} examples"
+        f"\n  Eval    : {len(split['test'])} examples"
+        f"\n==================="
     )
 
     training_args = SFTConfig(
@@ -97,6 +105,7 @@ def main() -> None:
         bf16=True,
         logging_steps=10,
         save_strategy="epoch",
+        eval_strategy="epoch",
         warmup_steps=100,
         lr_scheduler_type="cosine",
         dataset_text_field="text",
@@ -106,7 +115,8 @@ def main() -> None:
     trainer = SFTTrainer(
         model=model,
         args=training_args,
-        train_dataset=dataset,
+        train_dataset=split["train"],
+        eval_dataset=split["test"],
         processing_class=tokenizer,
     )
     trainer.train()
