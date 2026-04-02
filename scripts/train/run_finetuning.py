@@ -110,26 +110,28 @@ def _resolve_dataset_run_id(config, schema_name: str, schema_version: str) -> st
 def _train(args, config) -> None:
     """Launch a SageMaker QLoRA Training Job."""
     # noqa: PLC0415 — heavy optional dependency, only needed for train action
-    from sagemaker.train.configs import InputData, S3DataSource
     from queryforge.train.estimator import TrainingJobBuilder, build_training_inputs
-    from queryforge.train.hyperparameters import build_hyperparameters
 
     schema_name: str = args.schema_name
     schema_version: str = args.schema_version
     model_name: str = args.model_name
     model_version: str = args.model_version
 
-    # Resolve dataset run_id
-    dataset_run_id: str = args.dataset_run_id or _resolve_dataset_run_id(
-        config, schema_name, schema_version
-    )
-
     # URIs sourced from config artifact_uris (SSoT); fallback to conventional path.
     model_s3_uri = f"{S3Repository.component_uri(config, 'models')}/{model_name}/{model_version}"
-    dataset_s3_uri = (
-        f"{S3Repository.component_uri(config, 'datasets')}"
-        f"/{schema_name}/{schema_version}/{dataset_run_id}"
-    )
+
+    # --dataset-s3-uri takes priority over schema-based resolution.
+    if args.dataset_s3_uri:
+        dataset_s3_uri = args.dataset_s3_uri.rstrip("/")
+        dataset_run_id = dataset_s3_uri.rstrip("/").split("/")[-1]
+    else:
+        dataset_run_id = args.dataset_run_id or _resolve_dataset_run_id(
+            config, schema_name, schema_version
+        )
+        dataset_s3_uri = (
+            f"{S3Repository.component_uri(config, 'datasets')}"
+            f"/{schema_name}/{schema_version}/{dataset_run_id}"
+        )
 
     run_id = generate_run_id()
     output_s3_uri = args.output_s3_uri or (
@@ -142,15 +144,20 @@ def _train(args, config) -> None:
     print(f"Output  : {output_s3_uri}")
     print("\nLaunching SageMaker Training Job...")
 
+    extra_hp = {}
+    if args.epochs is not None:
+        extra_hp["epochs"] = args.epochs
+
     trainer = (
         TrainingJobBuilder(config)
         .with_output_s3_uri(output_s3_uri)
         .with_input_data(build_training_inputs(model_s3_uri, dataset_s3_uri))
+        .with_extra_hyperparameters(extra_hp)
         .build()
     )
-    training_job = trainer.train(wait=True)
+    trainer.train(wait=True)
 
-    job_name = training_job.training_job_name
+    job_name = trainer._latest_training_job.training_job_name
     artifact_uri = f"{output_s3_uri}/{job_name}/output/model.tar.gz"
 
     print(f"\nTraining complete.")
@@ -177,6 +184,12 @@ def main() -> None:
     parser.add_argument("--schema-name", help="Dataset schema name (required for train).")
     parser.add_argument("--schema-version", default="v1", help="Schema version (default: v1).")
     parser.add_argument(
+        "--dataset-s3-uri",
+        default=None,
+        help="Direct S3 URI to the dataset folder (e.g. s3://bucket/prefix/run_id). "
+             "When provided, --schema-name, --schema-version and --dataset-run-id are ignored.",
+    )
+    parser.add_argument(
         "--dataset-run-id",
         default=None,
         help="Dataset run ID. Defaults to the most recent run for the schema.",
@@ -185,6 +198,12 @@ def main() -> None:
         "--output-s3-uri",
         default=None,
         help="S3 URI for the output adapter. Auto-generated if omitted.",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=None,
+        help="Override number of training epochs (default: value from pipeline.yaml).",
     )
     parser.add_argument("--config", default="config/pipeline.yaml", help="Path to pipeline.yaml.")
     args = parser.parse_args()
@@ -200,8 +219,8 @@ def main() -> None:
     elif args.action == "train":
         if not args.model_name:
             parser.error("--model-name is required for the train action.")
-        if not args.schema_name:
-            parser.error("--schema-name is required for the train action.")
+        if not args.dataset_s3_uri and not args.schema_name:
+            parser.error("--schema-name or --dataset-s3-uri is required for the train action.")
         _train(args, config)
 
 
