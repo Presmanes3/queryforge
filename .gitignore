@@ -218,3 +218,5 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+compressed_artifacts/model.tar.gz
+compressed_artifacts/output.tar.gz
