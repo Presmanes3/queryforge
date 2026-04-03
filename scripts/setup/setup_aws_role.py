@@ -24,23 +24,25 @@ def main():
 
     # Load project SSoT
     config = load_config(args.config)
-    iam = boto3.client("iam")
+    session = boto3.Session(profile_name=config.aws_profile, region_name=config.aws_region)
+    iam = session.client("iam")
 
     # Extract role name from ARN
     role_name = config.execution_role_arn.split("/")[-1]
     
     # Path to policies
-    infra_dir = os.path.join(os.path.dirname(__file__), "../infrastructure/iam")
+    infra_dir = os.path.join(os.path.dirname(__file__), "../../infrastructure/iam")
     trust_policy_path = os.path.join(infra_dir, "trust-policy.json")
 
     with open(trust_policy_path) as f:
         trust_policy = f.read()
 
-    # 1. Create or Update Role
+    # 1. Create role if it does not exist.  Never overwrite the trust policy of
+    # an existing role — Studio service-roles carry additional trust statements
+    # that must not be replaced.
     try:
         iam.get_role(RoleName=role_name)
-        print(f"Role '{role_name}' already exists. Updating trust policy...")
-        iam.update_assume_role_policy(RoleName=role_name, PolicyDocument=trust_policy)
+        print(f"Role '{role_name}' already exists. Skipping trust policy update.")
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchEntity":
             print(f"Creating role '{role_name}'...")
@@ -103,6 +105,11 @@ def main():
                     "logs:PutLogEvents"
                 ],
                 "Resource": "arn:aws:logs:*:*:log-group:/aws/sagemaker/*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": "sagemaker-mlflow:*",
+                "Resource": "*"
             }
         ]
     }

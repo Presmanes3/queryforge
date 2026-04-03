@@ -1,0 +1,56 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::YOUR_BUCKET_NAME",
+        "arn:aws:s3:::YOUR_BUCKET_NAME/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sagemaker:CreateTrainingJob",
+        "sagemaker:CreateProcessingJob",
+        "sagemaker:DescribeTrainingJob",
+        "sagemaker:DescribeProcessingJob",
+        "sagemaker:ListTrainingJobs",
+        "sagemaker:ListProcessingJobs",
+        "sagemaker:CreateModel",
+        "sagemaker:RegisterModel"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/aws/sagemaker/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sagemaker-mlflow:*",
+      "Resource": "arn:aws:sagemaker:YOUR_REGION:YOUR_ACCOUNT_ID:mlflow-app/YOUR_APP_ID"
+    }
+  ]
+}
