@@ -58,6 +58,16 @@ class PipelineConfig(BaseModel):
         description="ECR image URI for the custom QueryForge processing container."
     )
 
+    # MLflow
+    mlflow_tracking_uri: str | None = Field(
+        default=None,
+        description="SageMaker MLflow Tracking Server ARN (arn:aws:sagemaker:...:mlflow-tracking-server/name). When set, all training jobs report metrics to this server.",
+    )
+    mlflow_experiment_name: str = Field(
+        default="queryforge-finetuning",
+        description="MLflow experiment name used to group all QueryForge training runs.",
+    )
+
     # Bedrock
     bedrock_model_id: str = Field(
         default="amazon.nova-pro-v1:0",

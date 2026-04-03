@@ -105,6 +105,10 @@ ipython_config.py
 config/pipeline.yaml
 !config/pipeline.yaml.example
 
+# --- IAM policies with real ARNs ---
+infrastructure/iam/execution-policy.json
+!infrastructure/iam/execution-policy.example.json
+
 # --- Python Environment ---
 .venv/
 .venv*
