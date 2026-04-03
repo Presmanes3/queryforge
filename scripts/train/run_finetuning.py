@@ -148,11 +148,25 @@ def _train(args, config) -> None:
     if args.epochs is not None:
         extra_hp["epochs"] = args.epochs
 
+    # Build environment variables for the training container.
+    # The container is the sole owner of the MLflow run; the launcher only
+    # supplies the desired run name and experiment so the entry is consistent
+    # regardless of which machine triggers the job.
+    container_env: dict[str, str] = {}
+    if config.mlflow_tracking_uri:
+        container_env = {
+            "MLFLOW_TRACKING_URI": config.mlflow_tracking_uri,
+            "MLFLOW_EXPERIMENT_NAME": config.mlflow_experiment_name,
+            "MLFLOW_RUN_NAME": f"{model_name}/{schema_name or 'custom'}/{run_id}",
+        }
+        print(f"MLflow  : {config.mlflow_tracking_uri}")
+
     trainer = (
         TrainingJobBuilder(config)
         .with_output_s3_uri(output_s3_uri)
         .with_input_data(build_training_inputs(model_s3_uri, dataset_s3_uri))
         .with_extra_hyperparameters(extra_hp)
+        .with_environment(container_env)
         .build()
     )
     trainer.train(wait=True)
