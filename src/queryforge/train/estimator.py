@@ -32,6 +32,7 @@ from sagemaker.train.model_trainer import ModelTrainer, Mode
 from sagemaker.train.configs import (
     Compute,
     InputData,
+    MetricDefinition,
     OutputDataConfig,
     S3DataSource,
     SourceCode,
@@ -107,6 +108,18 @@ class TrainingJobBuilder:
     # Absolute path to this file's directory == src/queryforge/train/
     _TRAIN_DIR: Path = Path(__file__).resolve().parent
 
+    # Regex patterns that extract scalar metrics from the HuggingFace Trainer
+    # stdout lines (e.g. "{'loss': 0.5156, 'learning_rate': 2e-05, 'epoch': 1.0}").
+    # SageMaker scrapes CloudWatch logs with these patterns to populate the
+    # Performance tab of the Training Job console.
+    _METRIC_DEFINITIONS: list[MetricDefinition] = [
+        MetricDefinition(name="train:loss", regex=r"'loss':\s*([0-9\.]+)"),
+        MetricDefinition(name="train:learning_rate", regex=r"'learning_rate':\s*([0-9e\-\.]+)"),
+        MetricDefinition(name="eval:loss", regex=r"'eval_loss':\s*([0-9\.]+)"),
+        MetricDefinition(name="eval:runtime", regex=r"'eval_runtime':\s*([0-9\.]+)"),
+        MetricDefinition(name="eval:samples_per_second", regex=r"'eval_samples_per_second':\s*([0-9\.]+)"),
+    ]
+
     def __init__(self, config: PipelineConfig) -> None:
         self._config = config
         self._mode: Mode = Mode.SAGEMAKER_TRAINING_JOB
@@ -115,6 +128,7 @@ class TrainingJobBuilder:
         self._output_s3_uri: str | None = None
         self._input_data: list[InputData] = []
         self._extra_hp: dict[str, Any] = {}
+        self._environment: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Builder methods
@@ -156,6 +170,11 @@ class TrainingJobBuilder:
     def with_extra_hyperparameters(self, extra: dict[str, Any]) -> "TrainingJobBuilder":
         """Merge additional hyperparameters on top of those derived from config."""
         self._extra_hp = extra
+        return self
+
+    def with_environment(self, env: dict[str, str]) -> "TrainingJobBuilder":
+        """Set environment variables injected into the training container."""
+        self._environment = env
         return self
 
     # ------------------------------------------------------------------
@@ -200,6 +219,7 @@ class TrainingJobBuilder:
             input_data_config=self._input_data,
             base_job_name=base_job_name,
             training_mode=self._mode,
+            environment=self._environment or None,
         )
 
         if not is_local:
@@ -213,7 +233,10 @@ class TrainingJobBuilder:
                     s3_output_path=self._output_s3_uri
                 )
 
-        return ModelTrainer(**trainer_kwargs)
+        trainer = ModelTrainer(**trainer_kwargs)
+        if not is_local:
+            trainer.with_metric_definitions(self._METRIC_DEFINITIONS)
+        return trainer
 
     # ------------------------------------------------------------------
     # Private resolution helpers
