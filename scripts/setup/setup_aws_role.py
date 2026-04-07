@@ -11,7 +11,7 @@ import os
 import sys
 import boto3
 from botocore.exceptions import ClientError
-from queryforge.utils.config import load_config
+from utils.config import load_config
 
 
 def main():

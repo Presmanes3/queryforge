@@ -8,8 +8,8 @@ import argparse
 import sys
 import yaml
 from botocore.exceptions import ClientError
-from queryforge.utils.config import load_config
-from queryforge.utils.s3 import S3Repository
+from utils.config import load_config
+from utils.s3 import S3Repository
 
 
 def main():

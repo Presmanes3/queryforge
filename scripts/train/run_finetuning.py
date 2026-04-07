@@ -10,8 +10,8 @@ import argparse
 import sys
 from collections import defaultdict
 
-from queryforge.utils.config import load_config
-from queryforge.utils.s3 import S3Repository, generate_run_id, list_s3_objects
+from utils.config import load_config
+from utils.s3 import S3Repository, generate_run_id, list_s3_objects
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ def _resolve_dataset_run_id(config, schema_name: str, schema_version: str) -> st
 def _train(args, config) -> None:
     """Launch a SageMaker QLoRA Training Job."""
     # noqa: PLC0415 — heavy optional dependency, only needed for train action
-    from queryforge.train.estimator import TrainingJobBuilder, build_training_inputs
+    from train.estimator import TrainingJobBuilder, build_training_inputs
 
     schema_name: str = args.schema_name
     schema_version: str = args.schema_version

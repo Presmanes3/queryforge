@@ -9,8 +9,8 @@ from __future__ import annotations
 import argparse
 import os
 
-from queryforge.utils.config import load_config
-from queryforge.utils.s3 import S3Repository, upload_file
+from utils.config import load_config
+from utils.s3 import S3Repository, upload_file
 
 
 def list_local_models(models_dir: str = "models") -> list[str]:

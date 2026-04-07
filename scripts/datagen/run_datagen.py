@@ -10,7 +10,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from queryforge.datagen.generator import DatasetGenerator
+from datagen.generator import DatasetGenerator
 
 
 def _load_schema_class(schema_file: str, class_name: str | None) -> type[BaseModel]:

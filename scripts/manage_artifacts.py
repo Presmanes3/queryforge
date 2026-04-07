@@ -7,8 +7,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from queryforge.utils.config import load_config
-from queryforge.utils.s3 import (
+from utils.config import load_config
+from utils.s3 import (
     S3Repository,
     check_s3_uri_exists,
     upload_file,
