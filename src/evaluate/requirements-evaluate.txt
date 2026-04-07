@@ -1,0 +1,12 @@
+# torch is provided by the pytorch/pytorch base image.
+# All other packages are installed on top of it.
+#
+# Versions are aligned with the local development environment (pip list).
+# Rebuild the Docker image when any version here changes.
+torch>=2.5,<2.7
+transformers>=5.0
+tokenizers>=0.22
+safetensors>=0.4
+peft>=0.18,<1.0
+bitsandbytes>=0.49,<1.0
+accelerate>=1.0,<2.0

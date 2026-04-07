@@ -14,6 +14,7 @@ outside the container.
 """
 
 from __future__ import annotations
+import glob
 import json
 import os
 
@@ -27,7 +28,7 @@ from trl import SFTConfig, SFTTrainer
 # hyperparameters.py is co-located in the same train/ directory and is packaged
 # into the container alongside this entry point.  It has no SageMaker SDK
 # dependency so it is safe to import here.
-from hyperparameters import DEFAULTS
+from hyperparameters import hyperparameters
 
 _HP_PATH = "/opt/ml/input/config/hyperparameters.json"
 _MODEL_CHANNEL = "/opt/ml/input/data/model"
@@ -71,6 +72,14 @@ def main() -> None:
     with open(_HP_PATH) as f:
         hp = json.load(f)
 
+    print("\n=== Hyperparameters ===")
+    for key, default in hyperparameters.items():
+        if key in hp:
+            print(f"  {key:<20}: {hp[key]}  (custom)")
+        else:
+            print(f"  {key:<20}: {default}  (default)")
+    print("======================\n")
+
     # ------------------------------------------------------------------
     # MLflow setup — active only when the launcher injects the tracking URI.
     # The HF Trainer MLflow callback reads these same env vars automatically
@@ -109,18 +118,24 @@ def main() -> None:
     model = get_peft_model(
         model,
         _get_lora_config(
-            r=int(hp.get("lora_r", DEFAULTS["lora_r"])),
-            alpha=int(hp.get("lora_alpha", DEFAULTS["lora_alpha"])),
-            dropout=float(hp.get("lora_dropout", DEFAULTS["lora_dropout"])),
+            r=int(hp.get("lora_r", hyperparameters["lora_r"])),
+            alpha=int(hp.get("lora_alpha", hyperparameters["lora_alpha"])),
+            dropout=float(hp.get("lora_dropout", hyperparameters["lora_dropout"])),
         ),
     )
 
     tokenizer = AutoTokenizer.from_pretrained(_MODEL_CHANNEL)
     tokenizer.pad_token = tokenizer.eos_token
 
+    data_files = glob.glob(os.path.join(_TRAINING_CHANNEL, "**", "*.jsonl"), recursive=True)
+    if not data_files:
+        raise FileNotFoundError(
+            f"No JSONL files found under {_TRAINING_CHANNEL}. "
+            "Ensure the dataset was uploaded to the correct S3 prefix."
+        )
     full_dataset = load_dataset(
         "json",
-        data_files=os.path.join(_TRAINING_CHANNEL, "*.jsonl"),
+        data_files=data_files,
         split="train",
     )
     split = full_dataset.train_test_split(test_size=0.1, seed=42)
@@ -139,9 +154,9 @@ def main() -> None:
         job_name = sm_env.get("job_name", os.environ.get("TRAINING_JOB_NAME", "unknown"))
         region = os.environ.get("AWS_REGION", "us-east-1")
         mlflow.log_params({
-            "lora_r": hp.get("lora_r", DEFAULTS["lora_r"]),
-            "lora_alpha": hp.get("lora_alpha", DEFAULTS["lora_alpha"]),
-            "lora_dropout": hp.get("lora_dropout", DEFAULTS["lora_dropout"]),
+            "lora_r": hp.get("lora_r", hyperparameters["lora_r"]),
+            "lora_alpha": hp.get("lora_alpha", hyperparameters["lora_alpha"]),
+            "lora_dropout": hp.get("lora_dropout", hyperparameters["lora_dropout"]),
             "train_examples": len(split["train"]),
             "eval_examples": len(split["test"]),
             "sagemaker_job_name": job_name,
@@ -153,10 +168,10 @@ def main() -> None:
 
     training_args = SFTConfig(
         output_dir=_OUTPUT_DIR,
-        num_train_epochs=int(hp.get("epochs", DEFAULTS["epochs"])),
-        per_device_train_batch_size=int(hp.get("batch_size", DEFAULTS["batch_size"])),
-        gradient_accumulation_steps=int(hp.get("grad_accum_steps", DEFAULTS["grad_accum_steps"])),
-        learning_rate=float(hp.get("learning_rate", DEFAULTS["learning_rate"])),
+        num_train_epochs=int(hp.get("epochs", hyperparameters["epochs"])),
+        per_device_train_batch_size=int(hp.get("batch_size", hyperparameters["batch_size"])),
+        gradient_accumulation_steps=int(hp.get("grad_accum_steps", hyperparameters["grad_accum_steps"])),
+        learning_rate=float(hp.get("learning_rate", hyperparameters["learning_rate"])),
         fp16=False,
         bf16=True,
         logging_steps=10,
@@ -165,7 +180,7 @@ def main() -> None:
         warmup_steps=100,
         lr_scheduler_type="cosine",
         dataset_text_field="text",
-        max_seq_length=int(hp.get("max_seq_length", DEFAULTS["max_seq_length"])),
+        max_seq_length=int(hp.get("max_seq_length", hyperparameters["max_seq_length"])),
         report_to=report_to,
         run_name=os.environ.get("TRAINING_JOB_NAME", "queryforge-train"),
     )

@@ -13,7 +13,7 @@ from langgraph.graph import END, START, StateGraph
 
 from shared.schemas.dataset import TrainingSample
 from shared.schemas.workflow.datagen import DatagenState
-from queryforge.utils.config import load_config
+from utils.config import load_config
 
 _PROMPT_PATH = Path(__file__).parent / "prompts" / "generate_pair.md"
 

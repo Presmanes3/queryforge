@@ -23,7 +23,7 @@ from shared.schemas.config import PipelineConfig
 
 
 # Resolved once at import time; avoids the brittle os.path.join(dirname, "../../..") pattern.
-_DEFAULT_CONFIG_PATH: Path = Path(__file__).resolve().parents[3] / "config" / "pipeline.yaml"
+_DEFAULT_CONFIG_PATH: Path = Path(__file__).resolve().parents[2] / "config" / "pipeline.yaml"
 
 
 class ConfigLoader:
@@ -85,22 +85,3 @@ class ConfigLoader:
                     if not isinstance(data.get(parent), dict):
                         data[parent] = {}
                     data[parent][child] = env_val
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatible alias
-# ---------------------------------------------------------------------------
-
-def load_config(path: str | None = None) -> PipelineConfig:
-    """Read and validate the QueryForge pipeline configuration.
-
-    Thin alias for :meth:`ConfigLoader.load` kept for backward compatibility
-    with existing call sites.
-
-    Args:
-        path: Path to the YAML config file. Defaults to ``config/pipeline.yaml``.
-
-    Returns:
-        Validated :class:`~shared.schemas.config.PipelineConfig` instance.
-    """
-    return ConfigLoader.load(path)

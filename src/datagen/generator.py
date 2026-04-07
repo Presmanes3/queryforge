@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from shared.schemas.agents.datagen import DatagenOutput
 from shared.schemas.workflow.datagen import DatagenState
 from queryforge.datagen.workflow import graph
-from queryforge.schema.ddl import derive_ddl
+from schemas.ddl import derive_ddl
 
 
 class DatasetGenerator:
