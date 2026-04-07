@@ -37,7 +37,7 @@ train = [
     # pip users: add --extra-index-url https://download.pytorch.org/whl/cu124
     #            to get the CUDA build; omit it for the CPU build.
     "torch>=2.4,<2.7",
-    "transformers>=4.36,<5.0",
+    "transformers>=5.0",
     "peft>=0.8,<1.0",
     "trl>=0.9,<1.0",
     # datasets>=3.0 dropped the fsspec<=2024.6.1 upper bound that conflicts
@@ -56,7 +56,7 @@ package-dir = {"" = "src", "shared" = "shared"}
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["queryforge*", "shared*"]
+include = ["queryforge*", "shared*", "pipeline*", "utils*", "schemas*", "train*", "evaluate*"]
 
 # ---------------------------------------------------------------------------
 # uv: route torch to the CUDA index on Linux/Windows (most training machines)
