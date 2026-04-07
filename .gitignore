@@ -224,3 +224,6 @@ marimo/_lsp/
 __marimo__/
 compressed_artifacts/model.tar.gz
 compressed_artifacts/output.tar.gz
+local_adapter/model.tar.gz
+eval_output/metrics.json
+eval_output/predictions.jsonl
