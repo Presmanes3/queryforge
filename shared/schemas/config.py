@@ -52,11 +52,24 @@ class PipelineConfig(BaseModel):
     )
     processing_instance_type: str = Field(
         default="ml.m5.large",
-        description="Default instance for data generation and evaluation jobs."
+        description="Default instance type for data generation Processing Jobs."
+    )
+    evaluation_instance_type: str = Field(
+        default="ml.g5.2xlarge",
+        description="Instance type for evaluation Processing Jobs. Requires GPU to run inference."
     )
     processing_image_uri: str = Field(
-        description="ECR image URI for the custom QueryForge processing container."
+        description="ECR image URI for the evaluation Processing Job container."
     )
+    training_image_uri: str | None = Field(
+        default=None,
+        description="ECR image URI for the training job container. When None, SageMaker selects the default PyTorch DLC automatically.",
+    )
+
+    @property
+    def effective_training_image_uri(self) -> str | None:
+        """Return the training image URI, or None to let SageMaker auto-select the DLC."""
+        return self.training_image_uri or None
 
     # MLflow
     mlflow_tracking_uri: str | None = Field(

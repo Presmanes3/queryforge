@@ -20,8 +20,13 @@ s3_prefix: "queryforge"
 # ---------------------------------------------------------------------------
 # SageMaker Processing container
 # ---------------------------------------------------------------------------
-processing_image_uri: "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/queryforge-processing:v1"
+# Build this image once with:  python scripts/setup/build_ecr_image.py
+# The script prints the full URI to paste here after a successful push.
+processing_image_uri: "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/queryforge-processing:v1"
+# CPU instance for data generation jobs (cheap).
 processing_instance_type: "ml.m5.large"
+# GPU instance for evaluation jobs (runs model inference).
+evaluation_instance_type: "ml.g5.2xlarge"
 
 # ---------------------------------------------------------------------------
 # QLoRA Training Job (all fields are optional — shown with their defaults)
