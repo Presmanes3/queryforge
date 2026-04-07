@@ -1,0 +1,5 @@
+- [X] Training script launching AWS sagemaker Training Job based on dataset
+- [X] Model training logging into MLflow App (serverless)
+- [ ] Model registration in Sagemaker
+- [ ] Model evaluation on test set
+- [ ] Model deployment to Sagemaker Endpoint 
