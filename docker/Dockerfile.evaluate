@@ -1,0 +1,38 @@
+# QueryForge — Evaluation Processing Job image
+#
+# Base: pytorch/pytorch 2.5.1 with CUDA 12.4 runtime (~3.5 GB).
+# transformers, peft, bitsandbytes, and accelerate are installed on top.
+#
+# evaluate.py is NOT copied here. SageMaker ScriptProcessor injects it at
+# runtime via the `code=` parameter of .run(). The image only provides the
+# Python environment. Rebuild only when dependencies change.
+#
+# Build (from project root):
+#   docker build -f docker/Dockerfile.evaluate -t queryforge-processing:v1 .
+#
+# Or use the automated script:
+#   python scripts/setup/build_ecr_image.py
+
+# pytorch/pytorch runtime (~3.5 GB) vs HuggingFace training DLC (~6 GB).
+# The training DLC includes DeepSpeed, NCCL, and Horovod — none of which are
+# needed for inference. This image provides only torch + CUDA runtime.
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+# ---- All dependencies (torch is already in the base image) ----
+COPY src/evaluate/requirements-evaluate.txt /tmp/requirements-evaluate.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-evaluate.txt
+
+# Copy support modules to a stable path inside the image. evaluate.py is NOT
+# copied here — SageMaker ScriptProcessor injects it at runtime via code=.
+# /opt/queryforge/evaluate/ is used so SageMaker cannot overwrite these files
+# when it mounts /opt/ml/processing/input/code/ as a runtime volume.
+COPY src/evaluate/_types.py  /opt/queryforge/evaluate/_types.py
+COPY src/evaluate/_sql.py    /opt/queryforge/evaluate/_sql.py
+COPY src/evaluate/_data.py   /opt/queryforge/evaluate/_data.py
+COPY src/evaluate/_model.py  /opt/queryforge/evaluate/_model.py
+
+# Validate that all imports resolve — catches silent pip failures at build time.
+RUN python -c "import torch; import transformers; import peft; import bitsandbytes; import accelerate; print('OK')"
+
+# Smoke-test CUDA availability — fails fast if the base image is wrong.
+# RUN python -c "import torch; assert torch.cuda.is_available() or print('WARNING: CUDA not available at build time (expected in --gpus all builds)')"
