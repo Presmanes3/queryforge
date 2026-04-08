@@ -2,13 +2,21 @@ import logging
 import os
 import boto3
 
+# Ensure Triton has a valid cache directory and doesn't conflict with system paths.
+os.environ["TRITON_CACHE_DIR"] = "/tmp/triton"
+
 from fastapi import FastAPI, Request
 from vllm import AsyncLLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
 
-from ._gpu import get_vllm_dtype
+# Importación absoluta compatible con la raíz del contenedor /app
+try:
+    from _gpu import get_vllm_dtype
+except ImportError:
+    # Fallback si se ejecuta desde src/ (local/tests)
+    from src.inference._gpu import get_vllm_dtype
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -63,12 +71,14 @@ async def startup_event():
         model=base_local_path,
         enable_lora=has_lora,
         max_loras=1 if has_lora else 0,
-        enforce_eager=True,           # Suele ser mejor para LoRA
+        enforce_eager=True,           # Evita problemas con grafos CUDA en arquitecturas mixtas
         tensor_parallel_size=1,
-        gpu_memory_utilization=0.85,  # Bajamos a 0.85 para dar margen a la GPU
-        max_model_len=4096,           # Llama-3.2 tiene 128k por defecto, lo que consume mucha VRAM
+        gpu_memory_utilization=0.80,  # Conservador para evitar OOM por fragmentación en T4 (16GB)
+        max_model_len=2048,           # Reducido para mayor estabilidad en inferencia
+        disable_custom_all_reduce=True, # Evita kernels personalizados que a veces fallan en T4
         dtype=get_vllm_dtype(),       # float16 en Turing (T4), bfloat16 en Ampere+
         disable_log_stats=False,
+        trust_remote_code=True
     )
     llm_engine = AsyncLLMEngine.from_engine_args(engine_args)
     logger.info("vLLM Engine listo.")
