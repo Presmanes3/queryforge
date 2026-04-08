@@ -11,11 +11,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Deploy a fine-tuned adapter to SageMaker.")
     parser.add_argument(
         "--adapter-uri",
+        default=config.inference.adapter_s3_uri,
         help="S3 URI of the model.tar.gz adapter (e.g., s3://bucket/path/to/model.tar.gz)",
     )
     parser.add_argument(
         "--base-model-uri",
-        default=f"s3://{config.s3_bucket}/{config.s3_prefix}/models/Llama-3.2-1B-Instruct/v1/",
+        default=config.inference.base_model_s3_uri or f"s3://{config.s3_bucket}/{config.s3_prefix}/models/Llama-3.2-1B-Instruct/v1/",
         help="S3 URI to the base model weights folder.",
     )
     args = parser.parse_args()
