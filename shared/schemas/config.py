@@ -34,6 +34,14 @@ class InferenceConfig(BaseModel):
         default=None,
         description="ECR image URI for the vLLM inference container."
     )
+    adapter_s3_uri: str | None = Field(
+        default=None,
+        description="S3 URI of the model.tar.gz adapter."
+    )
+    base_model_s3_uri: str | None = Field(
+        default=None,
+        description="S3 URI to the base model weights folder."
+    )
 
 
 class PipelineConfig(BaseModel):
