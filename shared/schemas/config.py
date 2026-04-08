@@ -19,11 +19,25 @@ class TrainConfig(BaseModel):
     lora_dropout: float = Field(default=0.05, description="Dropout applied to LoRA layers.")
 
 
-class PipelineConfig(BaseModel):
-    """Single Source of Truth (SSoT) for QueryForge environment and infrastructure.
+class InferenceConfig(BaseModel):
+    """SageMaker Real-time Inference configuration."""
 
-    All AWS resource identifiers and hyperparameters are validated here.
-    """
+    instance_type: str = Field(
+        default="ml.g4dn.xlarge",
+        description="SageMaker instance type for the inference endpoint. Requires GPU for vLLM."
+    )
+    initial_instance_count: int = Field(
+        default=1,
+        description="Initial number of instances to launch for the endpoint."
+    )
+    image_uri: str | None = Field(
+        default=None,
+        description="ECR image URI for the vLLM inference container."
+    )
+
+
+class PipelineConfig(BaseModel):
+    """Single Source of Truth (SSoT) for QueryForge environment and infrastructure."""
 
     # AWS Infrastructure
     s3_bucket: str = Field(
@@ -49,6 +63,10 @@ class PipelineConfig(BaseModel):
     train: TrainConfig = Field(
         default_factory=TrainConfig,
         description="QLoRA training job configuration (instance, hyperparameters, LoRA).",
+    )
+    inference: InferenceConfig = Field(
+        default_factory=InferenceConfig,
+        description="SageMaker Real-time Inference configuration.",
     )
     processing_instance_type: str = Field(
         default="ml.m5.large",
