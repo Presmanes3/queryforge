@@ -14,9 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Pin minimum dependencies to prevent API conflicts.
 RUN pip install vllm==0.6.3 "transformers==4.45.2" fastapi uvicorn boto3 peft
 
-RUN mkdir -p /app
+RUN mkdir -p /app/src/inference
 COPY src/inference/app.py /app/app.py
+COPY src/inference/_gpu.py /app/src/inference/_gpu.py
+# Create empty __init__.py to allow relative imports
+RUN touch /app/src/__init__.py /app/src/inference/__init__.py
+
 WORKDIR /app
+
+# Set PYTHONPATH to root /app so imports from src.* work correctly
+ENV PYTHONPATH="/app"
 
 # Expose port 8080 to comply with SageMaker container requirements.
 EXPOSE 8080
