@@ -44,6 +44,7 @@ QueryForge is an open-source framework for building schema-aware Text-to-SQL ass
 | `scripts/setup/` | AWS role creation, ECR staging, and model asset downloads. |
 | `scripts/run_pipeline.py` | Starts a full SageMaker Pipeline execution (Gen \u2192 Train \u2192 Eval). |
 | `scripts/deploy_model.py` | Deploys a trained adapter to a SageMaker Real-Time Endpoint. |
+| `scripts/inference/test_sagemaker_endpoint.py` | Smoke tests a running SageMaker endpoint with SQL prompts. |
 | `scripts/run_local_inference.py` | Tests adapters locally without SageMaker infrastructure. |
 | `scripts/datagen/run_datagen.py` | Standalone synthetic data generation for exploration. |
 
