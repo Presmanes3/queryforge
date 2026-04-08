@@ -1,0 +1,29 @@
+# Use lightweight PyTorch runtime to minimize image size.
+FROM pytorch/pytorch:2.4.0-cuda11.8-cudnn9-runtime
+
+# Prevent pip layer caching to reduce image footprint.
+ENV PIP_NO_CACHE_DIR=1
+ENV PYTHONUNBUFFERED=1
+ENV HF_HUB_OFFLINE=1
+
+# Require C compiler for Triton to build vLLM kernels.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pin minimum dependencies to prevent API conflicts.
+RUN pip install vllm==0.6.3 "transformers==4.45.2" fastapi uvicorn boto3 peft
+
+RUN mkdir -p /app
+COPY src/inference/app.py /app/app.py
+WORKDIR /app
+
+# Expose port 8080 to comply with SageMaker container requirements.
+EXPOSE 8080
+
+# Create a 'serve' script that SageMaker will execute automatically.
+# Overwrite the Conda Ray serve binary to prevent PATH conflicts.
+RUN echo '#!/bin/bash\nexec uvicorn app:app --host 0.0.0.0 --port 8080' > /opt/conda/bin/serve \
+    && chmod +x /opt/conda/bin/serve
+
+CMD ["serve"]
