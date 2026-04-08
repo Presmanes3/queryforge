@@ -109,6 +109,17 @@ config/pipeline.yaml
 infrastructure/iam/execution-policy.json
 !infrastructure/iam/execution-policy.example.json
 
+# --- Secrets and credentials (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+docker-compose.override.yaml
+docker-compose.yaml
+
 # --- Python Environment ---
 .venv/
 .venv*
