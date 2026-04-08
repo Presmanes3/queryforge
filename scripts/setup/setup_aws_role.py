@@ -11,7 +11,7 @@ import os
 import sys
 import boto3
 from botocore.exceptions import ClientError
-from utils.config import load_config
+from src.utils.config import ConfigLoader
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
 
     # Load project SSoT
-    config = load_config(args.config)
+    config = ConfigLoader.load(args.config)
     session = boto3.Session(profile_name=config.aws_profile, region_name=config.aws_region)
     iam = session.client("iam")
 
@@ -83,9 +83,28 @@ def main():
                     "sagemaker:ListTrainingJobs",
                     "sagemaker:ListProcessingJobs",
                     "sagemaker:CreateModel",
-                    "sagemaker:RegisterModel"
+                    "sagemaker:RegisterModel",
+                    "sagemaker:CreateEndpointConfig",
+                    "sagemaker:CreateEndpoint",
+                    "sagemaker:DescribeEndpoint",
+                    "sagemaker:DescribeEndpointConfig",
+                    "sagemaker:InvokeEndpoint",
+                    "sagemaker:DeleteEndpoint",
+                    "sagemaker:DeleteEndpointConfig"
                 ],
                 "Resource": "*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "iam:PassRole"
+                ],
+                "Resource": config.execution_role_arn,
+                "Condition": {
+                    "StringEquals": {
+                        "iam:PassedToService": "sagemaker.amazonaws.com"
+                    }
+                }
             },
             {
                 "Effect": "Allow",

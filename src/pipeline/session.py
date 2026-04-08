@@ -2,7 +2,7 @@ import os
 
 from botocore.exceptions import ClientError
 
-from config import config
+from src.config import config
 
 if os.environ.get("QF_LOCAL_MODE") == "1":
     from sagemaker.core.workflow.pipeline_context import LocalPipelineSession as _BaseLocalSession
