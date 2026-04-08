@@ -148,6 +148,10 @@ class S3Repository:
         bucket, key = s3_uri.replace("s3://", "").split("/", 1)
         self._client.upload_file(local_path, bucket, key)
 
+    def download(self, bucket: str, key: str, local_path: str) -> None:
+        """Copy an S3 object to *local_path*."""
+        self._client.download_file(bucket, key, local_path)
+
     def put(self, bucket: str, key: str, body: str = "") -> None:
         """Create or overwrite an S3 object with *body* as content."""
         self._client.put_object(Bucket=bucket, Key=key, Body=body)
